@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Magazine, MagazineStatus } from '@/types/database';
+import { useState, useEffect, useCallback } from 'react';
+import { Magazine, MagazineFormData, MagazineStatus } from '@/types/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { calculateReadTime } from '@/lib/readTime';
 import { useToast } from '@/hooks/use-toast';
+
+const MAGAZINES_STORAGE_KEY = 'magazine_data';
 
 interface UseMagazinesOptions {
   mine?: boolean;
@@ -16,49 +17,39 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
   const { user, profile, role } = useAuth();
   const { toast } = useToast();
 
-  const fetchMagazines = async () => {
-    if (!user) {
-      setMagazines([]);
-      setLoading(false);
-      return;
+  const loadMagazines = useCallback(() => {
+    const stored = localStorage.getItem(MAGAZINES_STORAGE_KEY);
+    let allMagazines: Magazine[] = stored ? JSON.parse(stored) : [];
+    
+    // Filter by user if mine option is true and not admin
+    if (options.mine && user && role !== 'admin') {
+      allMagazines = allMagazines.filter(m => m.author_id === user.id);
     }
-
-    setLoading(true);
-    try {
-      let query = supabase
-        .from('magazines')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (options.status) {
-        query = query.eq('status', options.status);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      setMagazines((data || []) as Magazine[]);
-    } catch (error) {
-      console.error('Error fetching magazines:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to fetch magazines',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+    
+    // Filter by status if specified
+    if (options.status) {
+      allMagazines = allMagazines.filter(m => m.status === options.status);
     }
-  };
+    
+    // Sort by created_at descending
+    allMagazines.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    
+    setMagazines(allMagazines);
+    setLoading(false);
+  }, [options.mine, options.status, user, role]);
 
   useEffect(() => {
-    fetchMagazines();
-  }, [user, options.mine, options.status]);
+    loadMagazines();
+  }, [loadMagazines]);
+
+  const saveMagazines = (newMagazines: Magazine[]) => {
+    localStorage.setItem(MAGAZINES_STORAGE_KEY, JSON.stringify(newMagazines));
+  };
 
   const createMagazine = async (
-    data: { title: string; subtitle: string; body_markdown: string },
+    data: MagazineFormData,
     heroImage?: File | null
-  ) => {
+  ): Promise<{ error: Error | null }> => {
     if (!user || !profile) {
       return { error: new Error('Not authenticated') };
     }
@@ -68,131 +59,123 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
       let heroThumbnailUrl: string | null = null;
 
       if (heroImage) {
-        const fileExt = heroImage.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('magazine-images')
-          .upload(fileName, heroImage);
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('magazine-images')
-          .getPublicUrl(fileName);
-
-        heroImageUrl = urlData.publicUrl;
-        heroThumbnailUrl = urlData.publicUrl;
+        // Convert image to base64 for localStorage storage
+        heroImageUrl = await fileToBase64(heroImage);
+        heroThumbnailUrl = heroImageUrl;
       }
 
       const readTimeMinutes = calculateReadTime(data.body_markdown);
 
-      const { error } = await supabase.from('magazines').insert({
+      const newMagazine: Magazine = {
+        id: `mag_${Date.now()}`,
         title: data.title,
         subtitle: data.subtitle || null,
         body_markdown: data.body_markdown,
         hero_image_url: heroImageUrl,
         hero_thumbnail_url: heroThumbnailUrl,
-        author_name: profile.name,
         author_id: user.id,
+        author_name: profile.name,
         read_time_minutes: readTimeMinutes,
-        status: 'pending' as MagazineStatus,
-      });
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-      if (error) throw error;
-
-      await fetchMagazines();
+      const stored = localStorage.getItem(MAGAZINES_STORAGE_KEY);
+      const allMagazines: Magazine[] = stored ? JSON.parse(stored) : [];
+      allMagazines.push(newMagazine);
+      saveMagazines(allMagazines);
+      
+      loadMagazines();
       return { error: null };
     } catch (error) {
-      console.error('Error creating magazine:', error);
       return { error: error as Error };
     }
   };
 
   const updateMagazine = async (
     id: string,
-    data: { title: string; subtitle: string; body_markdown: string },
+    data: MagazineFormData,
     heroImage?: File | null
-  ) => {
-    if (!user) {
-      return { error: new Error('Not authenticated') };
-    }
-
+  ): Promise<{ error: Error | null }> => {
     try {
-      let updateData: Record<string, unknown> = {
+      const stored = localStorage.getItem(MAGAZINES_STORAGE_KEY);
+      const allMagazines: Magazine[] = stored ? JSON.parse(stored) : [];
+      const index = allMagazines.findIndex(m => m.id === id);
+      
+      if (index === -1) {
+        return { error: new Error('Magazine not found') };
+      }
+
+      let heroImageUrl = allMagazines[index].hero_image_url;
+      let heroThumbnailUrl = allMagazines[index].hero_thumbnail_url;
+
+      if (heroImage) {
+        heroImageUrl = await fileToBase64(heroImage);
+        heroThumbnailUrl = heroImageUrl;
+      }
+
+      const readTimeMinutes = data.body_markdown 
+        ? calculateReadTime(data.body_markdown)
+        : allMagazines[index].read_time_minutes;
+
+      allMagazines[index] = {
+        ...allMagazines[index],
         title: data.title,
         subtitle: data.subtitle || null,
         body_markdown: data.body_markdown,
-        read_time_minutes: calculateReadTime(data.body_markdown),
+        hero_image_url: heroImageUrl,
+        hero_thumbnail_url: heroThumbnailUrl,
+        read_time_minutes: readTimeMinutes,
+        updated_at: new Date().toISOString(),
       };
 
-      if (heroImage) {
-        const fileExt = heroImage.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('magazine-images')
-          .upload(fileName, heroImage);
-
-        if (uploadError) throw uploadError;
-
-        const { data: urlData } = supabase.storage
-          .from('magazine-images')
-          .getPublicUrl(fileName);
-
-        updateData.hero_image_url = urlData.publicUrl;
-        updateData.hero_thumbnail_url = urlData.publicUrl;
-      }
-
-      const { error } = await supabase
-        .from('magazines')
-        .update(updateData)
-        .eq('id', id);
-
-      if (error) throw error;
-
-      await fetchMagazines();
+      saveMagazines(allMagazines);
+      loadMagazines();
       return { error: null };
     } catch (error) {
-      console.error('Error updating magazine:', error);
       return { error: error as Error };
     }
   };
 
-  const deleteMagazine = async (id: string) => {
+  const deleteMagazine = async (id: string): Promise<{ error: Error | null }> => {
     try {
-      const { error } = await supabase
-        .from('magazines')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      await fetchMagazines();
+      const stored = localStorage.getItem(MAGAZINES_STORAGE_KEY);
+      const allMagazines: Magazine[] = stored ? JSON.parse(stored) : [];
+      const filtered = allMagazines.filter(m => m.id !== id);
+      
+      saveMagazines(filtered);
+      loadMagazines();
       return { error: null };
     } catch (error) {
-      console.error('Error deleting magazine:', error);
       return { error: error as Error };
     }
   };
 
-  const updateStatus = async (id: string, status: MagazineStatus) => {
+  const updateStatus = async (id: string, status: MagazineStatus): Promise<{ error: Error | null }> => {
     if (role !== 'admin') {
       return { error: new Error('Unauthorized') };
     }
 
     try {
-      const { error } = await supabase
-        .from('magazines')
-        .update({ status })
-        .eq('id', id);
+      const stored = localStorage.getItem(MAGAZINES_STORAGE_KEY);
+      const allMagazines: Magazine[] = stored ? JSON.parse(stored) : [];
+      const index = allMagazines.findIndex(m => m.id === id);
+      
+      if (index === -1) {
+        return { error: new Error('Magazine not found') };
+      }
 
-      if (error) throw error;
+      allMagazines[index] = {
+        ...allMagazines[index],
+        status,
+        updated_at: new Date().toISOString(),
+      };
 
-      await fetchMagazines();
+      saveMagazines(allMagazines);
+      loadMagazines();
       return { error: null };
     } catch (error) {
-      console.error('Error updating status:', error);
       return { error: error as Error };
     }
   };
@@ -204,6 +187,16 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
     updateMagazine,
     deleteMagazine,
     updateStatus,
-    refetch: fetchMagazines,
+    refetch: loadMagazines,
   };
+}
+
+// Helper function to convert File to base64
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = error => reject(error);
+  });
 }
