@@ -69,19 +69,11 @@ export default function Auth() {
       if (isSignUp) {
         const { error } = await signUp(email, password, name);
         if (error) {
-          if (error.message.includes('already registered')) {
-            toast({
-              title: 'Account exists',
-              description: 'This email is already registered. Please sign in instead.',
-              variant: 'destructive',
-            });
-          } else {
-            toast({
-              title: 'Sign up failed',
-              description: error.message,
-              variant: 'destructive',
-            });
-          }
+          toast({
+            title: 'Sign up failed',
+            description: error.message,
+            variant: 'destructive',
+          });
           return;
         }
         toast({
@@ -228,6 +220,13 @@ export default function Auth() {
                   </button>
                 </p>
               )}
+            </div>
+
+            {/* Test accounts info */}
+            <div className="mt-6 rounded-lg bg-muted/50 p-4 text-sm">
+              <p className="font-medium text-foreground mb-2">Test Accounts:</p>
+              <p className="text-muted-foreground">Admin: admin@example.com / password</p>
+              <p className="text-muted-foreground">User: user1@example.com / password</p>
             </div>
           </CardContent>
         </Card>
