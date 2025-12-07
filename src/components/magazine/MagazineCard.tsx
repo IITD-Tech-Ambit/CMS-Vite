@@ -44,15 +44,24 @@ export function MagazineCard({
   return (
     <Card className="group overflow-hidden border-border/50 bg-card shadow-card transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1">
       <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-        {magazine.hero_image_url ? (
+        {magazine.hero_image_url || magazine.hero_thumbnail_url ? (
           <img
-            src={magazine.hero_image_url}
+            src={magazine.hero_thumbnail_url || magazine.hero_image_url}
             alt={magazine.title}
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            onError={(e) => {
+              // Fallback to full image if thumbnail fails
+              if (magazine.hero_thumbnail_url && e.currentTarget.src !== magazine.hero_image_url) {
+                e.currentTarget.src = magazine.hero_image_url || '';
+              } else {
+                // Hide image if both fail
+                e.currentTarget.style.display = 'none';
+              }
+            }}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/10 to-accent/30">
-            <span className="font-display text-4xl text-primary/30">M</span>
+            <span className="font-display text-3xl text-primary/40">IITD</span>
           </div>
         )}
         

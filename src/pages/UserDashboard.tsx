@@ -79,13 +79,13 @@ export default function UserDashboard() {
     if (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete magazine. Please try again.',
+        description: 'Failed to delete submission. Please try again.',
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Magazine deleted',
-        description: 'Your magazine has been deleted successfully.',
+        title: 'Submission deleted',
+        description: 'Your submission has been deleted successfully.',
       });
     }
 
@@ -111,13 +111,13 @@ export default function UserDashboard() {
       if (result.error) {
         toast({
           title: 'Error',
-          description: `Failed to ${selectedMagazine ? 'update' : 'create'} magazine.`,
+          description: `Failed to ${selectedMagazine ? 'update' : 'create'} submission.`,
           variant: 'destructive',
         });
       } else {
         toast({
-          title: selectedMagazine ? 'Magazine updated' : 'Magazine created',
-          description: `Your magazine has been ${selectedMagazine ? 'updated' : 'created'} successfully.`,
+          title: selectedMagazine ? 'Submission updated' : 'Submission created',
+          description: `Your submission has been ${selectedMagazine ? 'updated' : 'created'} successfully.`,
         });
         setViewMode('grid');
         setSelectedMagazine(null);
@@ -153,8 +153,8 @@ export default function UserDashboard() {
   if (viewMode === 'editor') {
     return (
       <DashboardLayout
-        title={selectedMagazine ? 'Edit Magazine' : 'Create New Magazine'}
-        description={selectedMagazine ? 'Update your magazine content' : 'Write and publish a new magazine'}
+        title={selectedMagazine ? 'Edit Issue' : 'Create New Issue'}
+        description={selectedMagazine ? 'Update your article content' : 'Write and submit a new research article'}
       >
         <MagazineEditor
           magazine={selectedMagazine}
@@ -168,23 +168,23 @@ export default function UserDashboard() {
 
   return (
     <DashboardLayout
-      title="My Magazines"
-      description="Manage your published content"
+      title="My IITD Submissions"
+      description="Manage your research submissions"
       action={
         <Button onClick={handleCreateNew} size="lg">
           <Plus className="mr-2 h-5 w-5" />
-          New Magazine
+          New Submission
         </Button>
       }
     >
       {magazines.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 py-20">
           <BookOpen className="mb-4 h-16 w-16 text-muted-foreground/50" />
-          <h3 className="font-display text-xl font-semibold text-foreground">No magazines yet</h3>
-          <p className="mt-2 text-muted-foreground">Create your first magazine to get started</p>
+          <h3 className="font-display text-xl font-semibold text-foreground">No submissions yet</h3>
+          <p className="mt-2 text-muted-foreground">Create your first submission to get started</p>
           <Button onClick={handleCreateNew} className="mt-6">
             <Plus className="mr-2 h-4 w-4" />
-            Create Magazine
+            Create Submission
           </Button>
         </div>
       ) : (

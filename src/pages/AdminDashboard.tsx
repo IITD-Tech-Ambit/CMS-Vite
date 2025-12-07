@@ -82,13 +82,13 @@ export default function AdminDashboard() {
     if (error) {
       toast({
         title: 'Error',
-        description: 'Failed to delete magazine.',
+        description: 'Failed to delete submission.',
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Magazine deleted',
-        description: 'The magazine has been deleted successfully.',
+        title: 'Submission deleted',
+        description: 'The submission has been deleted successfully.',
       });
     }
 
@@ -102,12 +102,12 @@ export default function AdminDashboard() {
     if (error) {
       toast({
         title: 'Error',
-        description: 'Failed to approve magazine.',
+        description: 'Failed to approve submission.',
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Magazine approved',
+        title: 'Submission approved',
         description: `"${magazine.title}" has been approved.`,
       });
     }
@@ -119,12 +119,12 @@ export default function AdminDashboard() {
     if (error) {
       toast({
         title: 'Error',
-        description: 'Failed to disapprove magazine.',
+        description: 'Failed to disapprove submission.',
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Magazine disapproved',
+        title: 'Submission disapproved',
         description: `"${magazine.title}" has been disapproved.`,
       });
     }
@@ -156,7 +156,7 @@ export default function AdminDashboard() {
   return (
     <DashboardLayout
       title="Admin Dashboard"
-      description="Manage all magazines and approvals"
+      description="Manage IITD Research submissions and approvals"
     >
       {/* Stats Cards */}
       <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -167,7 +167,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.total}</p>
-              <p className="text-sm text-muted-foreground">Total Magazines</p>
+              <p className="text-sm text-muted-foreground">Total Submissions</p>
             </div>
           </CardContent>
         </Card>
@@ -238,7 +238,7 @@ export default function AdminDashboard() {
           </Select>
         </div>
         <Badge variant="secondary" className="text-sm">
-          {filteredMagazines.length} magazine{filteredMagazines.length !== 1 ? 's' : ''}
+          {filteredMagazines.length} submission{filteredMagazines.length !== 1 ? 's' : ''}
         </Badge>
       </div>
 
@@ -246,9 +246,9 @@ export default function AdminDashboard() {
       {filteredMagazines.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 py-20">
           <FileText className="mb-4 h-16 w-16 text-muted-foreground/50" />
-          <h3 className="font-display text-xl font-semibold text-foreground">No magazines found</h3>
+          <h3 className="font-display text-xl font-semibold text-foreground">No submissions found</h3>
           <p className="mt-2 text-muted-foreground">
-            {statusFilter === 'all' ? 'No magazines have been created yet' : `No ${statusFilter} magazines`}
+            {statusFilter === 'all' ? 'No submissions have been created yet' : `No ${statusFilter} submissions`}
           </p>
         </div>
       ) : (
@@ -275,7 +275,7 @@ export default function AdminDashboard() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Magazine</AlertDialogTitle>
+            <AlertDialogTitle>Delete Submission</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete "{magazineToDelete?.title}"? This action cannot be undone.
             </AlertDialogDescription>

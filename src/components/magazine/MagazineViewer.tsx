@@ -24,7 +24,7 @@ export function MagazineViewer({ magazine, onBack }: MagazineViewerProps) {
       {/* Back Button */}
       <Button variant="ghost" onClick={onBack} className="mb-6 -ml-2">
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Dashboard
+        Back to IITD Dashboard
       </Button>
 
       {/* Hero Image */}
@@ -34,6 +34,10 @@ export function MagazineViewer({ magazine, onBack }: MagazineViewerProps) {
             src={magazine.hero_image_url}
             alt={magazine.title}
             className="h-full w-full object-cover"
+            onError={(e) => {
+              console.error('Failed to load image:', magazine.hero_image_url);
+              e.currentTarget.style.display = 'none';
+            }}
           />
         </div>
       )}

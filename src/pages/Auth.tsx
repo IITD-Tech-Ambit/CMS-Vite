@@ -225,8 +225,8 @@ export default function Auth() {
             {/* Test accounts info */}
             <div className="mt-6 rounded-lg bg-muted/50 p-4 text-sm">
               <p className="font-medium text-foreground mb-2">Test Accounts:</p>
-              <p className="text-muted-foreground">Admin: admin@example.com / password</p>
-              <p className="text-muted-foreground">User: user1@example.com / password</p>
+              <p className="text-muted-foreground">Admin: admin@example.com / Password123!</p>
+              <p className="text-muted-foreground">User: user1@example.com / Password123!</p>
             </div>
           </CardContent>
         </Card>

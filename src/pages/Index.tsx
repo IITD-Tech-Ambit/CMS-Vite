@@ -28,9 +28,9 @@ export default function Index() {
       {/* Header */}
       <header className="border-b border-border/40 bg-background/95 backdrop-blur">
         <div className="container flex h-16 items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2">
             <BookOpen className="h-6 w-6 text-primary" />
-            <span className="font-display text-xl font-semibold">MagPress</span>
+            <span className="font-display text-xl font-semibold">IITD Research Magazine</span>
           </Link>
           <nav className="flex items-center gap-4">
             <Button variant="ghost" asChild>
@@ -48,23 +48,23 @@ export default function Index() {
         <div className="container relative z-10">
           <div className="mx-auto max-w-3xl text-center">
             <h1 className="animate-fade-in font-display text-4xl font-bold leading-tight text-foreground md:text-5xl lg:text-6xl">
-              Publish Your Ideas with{' '}
-              <span className="text-primary">Elegance</span>
+              Publish IIT Delhi Research and Insights
+              <span className="text-primary">IITD Research Magazine</span>
             </h1>
             <p className="mt-6 animate-fade-in text-lg text-muted-foreground md:text-xl" style={{ animationDelay: '100ms' }}>
-              A beautiful magazine publishing platform with a powerful markdown editor, 
-              real-time preview, and seamless content management.
+              The official platform for IIT Delhi research — submit articles, reports, and technical
+              insights with a powerful markdown editor and real-time preview.
             </p>
             <div className="mt-8 flex animate-fade-in flex-col items-center justify-center gap-4 sm:flex-row" style={{ animationDelay: '200ms' }}>
               <Button size="xl" variant="hero" asChild>
                 <Link to="/auth?mode=signup">
-                  Start Writing
+                  Submit Research
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
               <Button size="xl" variant="outline" asChild>
-                <Link to="/auth">Sign In</Link>
-              </Button>
+                  <Link to="/auth">Sign In</Link>
+                </Button>
             </div>
           </div>
         </div>
@@ -79,10 +79,10 @@ export default function Index() {
         <div className="container">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-display text-3xl font-bold text-foreground">
-              Everything You Need to Publish
+              Everything You Need to Share Research
             </h2>
             <p className="mt-4 text-muted-foreground">
-              A complete platform for writers, editors, and publishers
+              Tools for researchers, authors, and reviewers at IIT Delhi
             </p>
           </div>
 
@@ -125,10 +125,10 @@ export default function Index() {
         <div className="container">
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-display text-3xl font-bold text-foreground">
-              Ready to Start Publishing?
+              Explore IITD Research Magazine
             </h2>
             <p className="mt-4 text-muted-foreground">
-              Join MagPress today and share your stories with the world
+              Discover research, technical reports, and articles from IIT Delhi
             </p>
             <Button size="xl" variant="hero" className="mt-8" asChild>
               <Link to="/auth?mode=signup">
@@ -144,12 +144,12 @@ export default function Index() {
       <footer className="border-t border-border/40 py-8">
         <div className="container">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-primary" />
-              <span className="font-display font-semibold">MagPress</span>
+              <span className="font-display font-semibold">IITD Research Magazine</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} MagPress. All rights reserved.
+              © {new Date().getFullYear()} Indian Institute of Technology Delhi. All rights reserved.
             </p>
           </div>
         </div>

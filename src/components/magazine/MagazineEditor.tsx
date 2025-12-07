@@ -105,7 +105,7 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
               onClick={() => fileInputRef.current?.click()}
             >
               <ImageIcon className="mb-2 h-10 w-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Click to upload hero image</p>
+              <p className="text-sm text-muted-foreground">Click to upload cover image for IITD Research Magazine</p>
               <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP (max 8MB)</p>
             </div>
           )}
@@ -132,7 +132,7 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter magazine title"
+            placeholder="Enter IITD research title"
             required
             className="font-display text-lg"
           />
@@ -173,7 +173,7 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
           />
         </div>
         <p className="text-xs text-muted-foreground">
-          Use Markdown to format your content. The preview updates in real-time.
+          Use Markdown to format your research article. The preview updates in real-time.
         </p>
       </div>
 
@@ -184,7 +184,7 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
         </Button>
         <Button type="submit" disabled={isSubmitting || !title.trim() || !bodyMarkdown.trim()}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {magazine ? 'Update Magazine' : 'Create Magazine'}
+          {magazine ? 'Update Issue' : 'Create Issue'}
         </Button>
       </div>
     </form>
