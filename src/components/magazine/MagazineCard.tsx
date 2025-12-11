@@ -10,12 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreVertical, Edit, Trash2, Eye, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { MoreVertical, Edit, Trash2, Eye, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface MagazineCardProps {
   magazine: Magazine;
   isAdmin?: boolean;
+  isProcessing?: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
   onView?: () => void;
@@ -32,6 +33,7 @@ const statusConfig: Record<MagazineStatus, { label: string; variant: 'default' |
 export function MagazineCard({
   magazine,
   isAdmin = false,
+  isProcessing = false,
   onEdit,
   onDelete,
   onView,
@@ -88,8 +90,12 @@ export function MagazineCard({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                <MoreVertical className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={isProcessing}>
+                {isProcessing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MoreVertical className="h-4 w-4" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">

@@ -32,6 +32,7 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
   const { toast } = useToast();
 
   const loadMagazines = useCallback(async () => {
+    setLoading(true);
     const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
     const token = localStorage.getItem('magazine_token');
 

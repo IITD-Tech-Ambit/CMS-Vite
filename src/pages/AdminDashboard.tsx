@@ -42,6 +42,7 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<MagazineStatus | 'all'>('all');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [magazineToDelete, setMagazineToDelete] = useState<Magazine | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -77,7 +78,9 @@ export default function AdminDashboard() {
   const confirmDelete = async () => {
     if (!magazineToDelete) return;
 
+    setProcessingId(magazineToDelete.id);
     const { error } = await deleteMagazine(magazineToDelete.id);
+    setProcessingId(null);
     
     if (error) {
       toast({
@@ -97,7 +100,9 @@ export default function AdminDashboard() {
   };
 
   const handleApprove = async (magazine: Magazine) => {
+    setProcessingId(magazine.id);
     const { error } = await updateStatus(magazine.id, 'approved');
+    setProcessingId(null);
     
     if (error) {
       toast({
@@ -114,7 +119,9 @@ export default function AdminDashboard() {
   };
 
   const handleDisapprove = async (magazine: Magazine) => {
+    setProcessingId(magazine.id);
     const { error } = await updateStatus(magazine.id, 'disapproved');
+    setProcessingId(null);
     
     if (error) {
       toast({
@@ -262,6 +269,7 @@ export default function AdminDashboard() {
               <MagazineCard
                 magazine={magazine}
                 isAdmin
+                isProcessing={processingId === magazine.id}
                 onView={() => handleView(magazine)}
                 onDelete={() => handleDelete(magazine)}
                 onApprove={() => handleApprove(magazine)}
