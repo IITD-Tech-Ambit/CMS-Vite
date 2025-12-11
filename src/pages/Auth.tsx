@@ -37,10 +37,10 @@ export default function Auth() {
 
   const validateForm = () => {
     try {
-      const data = isSignUp 
+      const data = isSignUp
         ? { email, password, name }
         : { email, password };
-      
+
       authSchema.parse(data);
       setErrors({});
       return true;
@@ -60,7 +60,7 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);

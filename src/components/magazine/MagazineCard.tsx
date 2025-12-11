@@ -64,7 +64,7 @@ export function MagazineCard({
             <span className="font-display text-3xl text-primary/40">IITD</span>
           </div>
         )}
-        
+
         <div className="absolute right-2 top-2">
           <Badge variant={status.variant} className="gap-1 shadow-sm">
             <StatusIcon className="h-3 w-3" />
@@ -85,7 +85,7 @@ export function MagazineCard({
               </p>
             )}
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">

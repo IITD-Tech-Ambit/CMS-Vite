@@ -6,6 +6,20 @@ import { useToast } from '@/hooks/use-toast';
 
 const MAGAZINES_STORAGE_KEY = 'magazine_data';
 
+// Map frontend status to backend status
+const statusToBackend = (status: MagazineStatus): string => {
+  if (status === 'approved') return 'online';
+  if (status === 'disapproved') return 'archived';
+  return status; // 'pending' stays the same
+};
+
+// Map backend status to frontend status
+const statusToFrontend = (status: string): MagazineStatus => {
+  if (status === 'online') return 'approved';
+  if (status === 'archived') return 'disapproved';
+  return status as MagazineStatus; // 'pending' stays the same
+};
+
 interface UseMagazinesOptions {
   mine?: boolean;
   status?: MagazineStatus;
@@ -18,26 +32,33 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
   const { toast } = useToast();
 
   const loadMagazines = useCallback(async () => {
-    const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
     const token = localStorage.getItem('magazine_token');
 
     // If token present, call backend API
     if (token && user) {
       try {
-        const params = new URLSearchParams();
-        if (options.mine) params.set('mine', 'true');
-        if (options.status) params.set('status', options.status);
-        const url = `${api}/magazines?${params.toString()}`;
+        // Backend returns all content, we filter client-side if needed
+        const url = `${api}/api/content`;
         const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const json = await resp.json();
         if (resp.ok && json.success) {
-          const items = json.data || [];
-          // normalize backend magazine shape to frontend expected shape
+          let items = json.data || [];
+
+          // Filter by user's content if mine option is true
+          if (options.mine && role !== 'admin') {
+            items = items.filter((m: any) => m.created_by === user.id || (m.created_by?._id === user.id));
+          }
+
+          // Filter by status if specified
+          if (options.status) {
+            const backendStatus = statusToBackend(options.status);
+            items = items.filter((m: any) => m.status === backendStatus);
+          }
+
+          // normalize backend content shape to frontend expected shape
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mapped = items.map((m: any) => {
-            // Use full image URL for hero, thumbnail URL for thumbnail (fallback to full if no thumbnail)
-            const rawHero = (m.heroImage && m.heroImage.url) || m.hero_image_url || null;
-            const rawThumb = (m.heroImage && (m.heroImage.thumbnailUrl || m.heroImage.url)) || m.hero_thumbnail_url || null;
             const makeAbsolute = (p: string | null) => {
               if (!p) return null;
               if (p.startsWith('http://') || p.startsWith('https://')) return p;
@@ -49,25 +70,29 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
               id: m._id || m.id,
               title: m.title,
               subtitle: m.subtitle || null,
-              body_markdown: m.bodyMarkdown || m.body_markdown || null,
+              body_markdown: m.body || m.bodyMarkdown || m.body_markdown || null,
               body_html: m.bodyHtml || m.body_html || null,
-              hero_image_url: makeAbsolute(rawHero),
-              hero_thumbnail_url: makeAbsolute(rawThumb),
-              author_id: m.authorId || m.author_id || (m.author && (m.author._id || m.author.id)) || null,
-              author_name: m.authorName || m.author_name || (m.author && (m.author.name)) || null,
-              read_time_minutes: m.readTimeMinutes || m.read_time_minutes || m.read_time || 0,
+              hero_image_url: makeAbsolute(m.image_url || m.hero_image_url),
+              hero_thumbnail_url: makeAbsolute(m.image_url || m.hero_thumbnail_url),
+              author_id: m.created_by?._id || m.created_by || m.author_id || null,
+              author_name: m.created_by?.name || m.author_name || null,
+              read_time_minutes: m.est_read_time || m.read_time_minutes || m.read_time || 0,
               word_count: m.wordCount || m.word_count || 0,
-              status: m.status || 'pending',
+              status: statusToFrontend(m.status || 'pending'),
               created_at: m.createdAt || m.created_at,
               updated_at: m.updatedAt || m.updated_at,
             } as Magazine);
           });
+
+          // Sort by created_at descending
+          mapped.sort((a: Magazine, b: Magazine) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
           setMagazines(mapped);
         } else {
           setMagazines([]);
         }
       } catch (e) {
-        console.warn('Failed to fetch magazines from API', e);
+        console.warn('Failed to fetch content from API', e);
         setMagazines([]);
       } finally {
         setLoading(false);
@@ -109,26 +134,35 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
     heroImage?: File | null
   ): Promise<{ error: Error | null }> => {
     const token = localStorage.getItem('magazine_token');
-    const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
 
     if (token && user) {
       try {
         const form = new FormData();
         form.append('title', data.title);
-        form.append('bodyMarkdown', data.body_markdown);
-        if (data.subtitle) form.append('subtitle', data.subtitle);
-        if (heroImage) form.append('heroImage', heroImage);
+        form.append('subtitle', data.subtitle || ''); // Backend requires subtitle
+        form.append('body', data.body_markdown);
+        form.append('est_read_time', String(calculateReadTime(data.body_markdown)));
+        if (heroImage) form.append('hero_img', heroImage);
 
-        const resp = await fetch(`${api}/magazines`, {
+        const resp = await fetch(`${api}/api/content`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body: form,
         });
         const json = await resp.json();
-        if (!resp.ok || !json.success) return { error: new Error(json.message || 'Create failed') };
+        if (!resp.ok || !json.success) {
+          // Log detailed error for debugging
+          console.error('Create content failed:', json);
+          const errorMsg = json.errors
+            ? json.errors.map((e: any) => e.message || e.field).join(', ')
+            : json.message || 'Create failed';
+          return { error: new Error(errorMsg) };
+        }
         await loadMagazines();
         return { error: null };
       } catch (e) {
+        console.error('Create content error:', e);
         return { error: e as Error };
       }
     }
@@ -183,16 +217,20 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
     heroImage?: File | null
   ): Promise<{ error: Error | null }> => {
     const token = localStorage.getItem('magazine_token');
-    const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
     if (token) {
       try {
         const form = new FormData();
+        form.append('id', id);
         if (data.title) form.append('title', data.title);
         if (data.subtitle) form.append('subtitle', data.subtitle);
-        if (data.body_markdown) form.append('bodyMarkdown', data.body_markdown);
-        if (heroImage) form.append('heroImage', heroImage);
+        if (data.body_markdown) {
+          form.append('body', data.body_markdown);
+          form.append('est_read_time', String(calculateReadTime(data.body_markdown)));
+        }
+        if (heroImage) form.append('hero_img', heroImage);
 
-        const resp = await fetch(`${api}/magazines/${id}`, {
+        const resp = await fetch(`${api}/api/content`, {
           method: 'PUT',
           headers: { Authorization: `Bearer ${token}` },
           body: form,
@@ -223,7 +261,7 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
         heroThumbnailUrl = heroImageUrl;
       }
 
-      const readTimeMinutes = data.body_markdown 
+      const readTimeMinutes = data.body_markdown
         ? calculateReadTime(data.body_markdown)
         : allMagazines[index].read_time_minutes;
 
@@ -248,14 +286,18 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
 
   const deleteMagazine = async (id: string): Promise<{ error: Error | null }> => {
     const token = localStorage.getItem('magazine_token');
-    const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
 
     // If token present, call backend API
     if (token) {
       try {
-        const resp = await fetch(`${api}/magazines/${id}`, {
+        const resp = await fetch(`${api}/api/content`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ id }),
         });
         const json = await resp.json();
         if (!resp.ok || !json.success) {
@@ -275,7 +317,7 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
       const stored = localStorage.getItem(MAGAZINES_STORAGE_KEY);
       const allMagazines: Magazine[] = stored ? JSON.parse(stored) : [];
       const filtered = allMagazines.filter(m => m.id !== id);
-      
+
       saveMagazines(filtered);
       loadMagazines();
       return { error: null };
@@ -290,18 +332,21 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
     }
 
     const token = localStorage.getItem('magazine_token');
-    const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+    const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
 
     // If token present, call backend API
     if (token) {
       try {
-        const endpoint = status === 'approved' 
-          ? `${api}/magazines/${id}/approve`
-          : `${api}/magazines/${id}/disapprove`;
-        
-        const resp = await fetch(endpoint, {
+        // Map frontend status to backend status
+        const backendStatus = statusToBackend(status);
+
+        const resp = await fetch(`${api}/api/content/status`, {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ contentId: id, status: backendStatus }),
         });
         const json = await resp.json();
         if (!resp.ok || !json.success) {
@@ -319,7 +364,7 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
       const stored = localStorage.getItem(MAGAZINES_STORAGE_KEY);
       const allMagazines: Magazine[] = stored ? JSON.parse(stored) : [];
       const index = allMagazines.findIndex(m => m.id === id);
-      
+
       if (index === -1) {
         return { error: new Error('Magazine not found') };
       }

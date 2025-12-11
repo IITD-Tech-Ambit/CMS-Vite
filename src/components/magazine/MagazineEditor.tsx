@@ -65,7 +65,7 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!title.trim()) return;
     if (!bodyMarkdown.trim()) return;
 
@@ -81,7 +81,7 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
       <Card className="overflow-hidden">
         <CardContent className="p-4">
           <Label className="mb-2 block">Hero Image</Label>
-          
+
           {heroPreview ? (
             <div className="relative aspect-video overflow-hidden rounded-lg bg-muted">
               <img
@@ -109,7 +109,7 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
               <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP (max 8MB)</p>
             </div>
           )}
-          
+
           <input
             ref={fileInputRef}
             type="file"
@@ -117,7 +117,7 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
             onChange={handleImageSelect}
             className="hidden"
           />
-          
+
           {imageError && (
             <p className="mt-2 text-sm text-destructive">{imageError}</p>
           )}

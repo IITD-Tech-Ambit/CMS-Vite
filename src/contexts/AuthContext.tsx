@@ -1,6 +1,29 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AppRole, Profile } from '@/types/database';
 
+// Helper function to decode JWT token
+function decodeJWT(token: string): { id: string; email: string; role: AppRole } | null {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    const payload = JSON.parse(jsonPayload);
+    return {
+      id: payload.id,
+      email: payload.email,
+      role: payload.role || 'user',
+    };
+  } catch (e) {
+    console.warn('Failed to decode JWT', e);
+    return null;
+  }
+}
+
 interface User {
   id: string;
   email: string;
@@ -40,47 +63,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load auth state from localStorage on mount
   useEffect(() => {
-    // on mount, try to load token and fetch /auth/me
+    // Try to load token and decode user info from JWT
     const token = localStorage.getItem(TOKEN_STORAGE_KEY);
     if (!token) {
       setLoading(false);
       return;
     }
 
-    (async () => {
+    // Try to restore from saved auth state first
+    const savedAuth = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (savedAuth) {
       try {
-        const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-        const resp = await fetch(`${api}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!resp.ok) {
-          localStorage.removeItem(TOKEN_STORAGE_KEY);
+        const { user: savedUser, profile: savedProfile, role: savedRole } = JSON.parse(savedAuth);
+        if (savedUser && savedProfile && savedRole) {
+          setUser(savedUser);
+          setProfile(savedProfile);
+          setRole(savedRole);
           setLoading(false);
           return;
         }
-        const json = await resp.json();
-        if (json && json.success && json.data) {
-          const me = json.data as any;
-          const newUser: User = { id: me._id, email: me.email };
-          setUser(newUser);
-          const userProfile: Profile = {
-            id: me._id,
-            user_id: me._id,
-            name: me.name,
-            email: me.email,
-            avatar_url: (me.avatar_url as string) || null,
-            created_at: me.createdAt,
-            updated_at: me.updatedAt,
-          };
-          setProfile(userProfile);
-          setRole(me.role || 'user');
-          saveAuthState(newUser, userProfile, me.role || 'user');
-        }
       } catch (e) {
-        console.warn('Failed to fetch /auth/me', e);
-        localStorage.removeItem(TOKEN_STORAGE_KEY);
-      } finally {
-        setLoading(false);
+        console.warn('Failed to parse saved auth state', e);
       }
-    })();
+    }
+
+    // Decode JWT to get user info
+    const decoded = decodeJWT(token);
+    if (!decoded) {
+      localStorage.removeItem(TOKEN_STORAGE_KEY);
+      setLoading(false);
+      return;
+    }
+
+    const newUser: User = { id: decoded.id, email: decoded.email };
+    // Create a minimal profile from JWT data
+    const userProfile: Profile = {
+      id: decoded.id,
+      user_id: decoded.id,
+      name: decoded.email.split('@')[0], // Use email prefix as name fallback
+      email: decoded.email,
+      avatar_url: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    setUser(newUser);
+    setProfile(userProfile);
+    setRole(decoded.role);
+    saveAuthState(newUser, userProfile, decoded.role);
+    setLoading(false);
   }, []);
 
   const saveAuthState = (user: User | null, profile: Profile | null, role: AppRole | null) => {
@@ -112,8 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = async (email: string, password: string): Promise<{ error: Error | null }> => {
     try {
-      const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const resp = await fetch(`${api}/auth/login`, {
+      const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
+      const resp = await fetch(`${api}/api/user/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -121,23 +151,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const json = await resp.json();
       if (!resp.ok || !json.success) return { error: new Error(json.message || 'Login failed') };
       const token = json.data.token;
-      const userObj = json.data.user || json.data;
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
 
-      const newUser: User = { id: userObj._id || userObj.id, email: userObj.email };
+      // Decode JWT to get user info since backend only returns token
+      const decoded = decodeJWT(token);
+      if (!decoded) return { error: new Error('Failed to decode token') };
+
+      const newUser: User = { id: decoded.id, email: decoded.email };
       const userProfile: Profile = {
-        id: userObj._id || userObj.id,
-        user_id: userObj._id || userObj.id,
-        name: userObj.name,
-        email: userObj.email,
-        avatar_url: userObj.avatar_url || null,
-        created_at: userObj.createdAt,
-        updated_at: userObj.updatedAt,
+        id: decoded.id,
+        user_id: decoded.id,
+        name: email.split('@')[0], // Use email prefix as name
+        email: decoded.email,
+        avatar_url: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       };
       setUser(newUser);
       setProfile(userProfile);
-      setRole(userObj.role || 'user');
-      saveAuthState(newUser, userProfile, userObj.role || 'user');
+      setRole(decoded.role);
+      saveAuthState(newUser, userProfile, decoded.role);
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -146,32 +179,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string): Promise<{ error: Error | null }> => {
     try {
-      const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const resp = await fetch(`${api}/auth/register`, {
+      const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
+      const resp = await fetch(`${api}/api/user/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password }),
       });
       const json = await resp.json();
       if (!resp.ok || !json.success) return { error: new Error(json.message || 'Registration failed') };
-      const token = json.data.token;
-      const userObj = json.data.user || json.data;
+
+      // Backend returns user data directly on register
+      const userObj = json.data;
+      const userId = userObj._id || userObj.id;
+
+      // After registration, login to get token
+      const loginResp = await fetch(`${api}/api/user/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const loginJson = await loginResp.json();
+      if (!loginResp.ok || !loginJson.success) {
+        return { error: new Error('Registration successful but login failed. Please sign in.') };
+      }
+
+      const token = loginJson.data.token;
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
 
-      const newUser: User = { id: userObj._id || userObj.id, email: userObj.email };
+      const newUser: User = { id: userId, email: userObj.email };
       const userProfile: Profile = {
-        id: userObj._id || userObj.id,
-        user_id: userObj._id || userObj.id,
-        name: userObj.name,
+        id: userId,
+        user_id: userId,
+        name: userObj.name || name,
         email: userObj.email,
-        avatar_url: userObj.avatar_url || null,
+        avatar_url: userObj.profile_img || null,
         created_at: userObj.createdAt,
         updated_at: userObj.updatedAt,
       };
+      const userRole = userObj.role || 'user';
       setUser(newUser);
       setProfile(userProfile);
-      setRole(userObj.role || 'user');
-      saveAuthState(newUser, userProfile, userObj.role || 'user');
+      setRole(userRole);
+      saveAuthState(newUser, userProfile, userRole);
       return { error: null };
     } catch (err: any) {
       return { error: err };
@@ -179,13 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    try {
-      const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
-      const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-      if (token) {
-        await fetch(`${api}/auth/logout`, { headers: { Authorization: `Bearer ${token}` } });
-      }
-    } catch (e) {}
+    // Backend doesn't have a logout endpoint, just clear local state
     setUser(null);
     setProfile(null);
     setRole(null);
@@ -196,12 +239,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateProfile = async (data: Partial<Profile>): Promise<{ error: Error | null }> => {
     if (!user) return { error: new Error('Not authenticated') };
     try {
-      const api = import.meta.env.VITE_API_URL || 'http://localhost:4000';
+      const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
       const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-      const resp = await fetch(`${api}/auth/me`, {
+      const resp = await fetch(`${api}/api/user/edit`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          name: data.name,
+          password: (data as any).password,
+        }),
       });
       const json = await resp.json();
       if (!resp.ok || !json.success) return { error: new Error(json.message || 'Update failed') };
@@ -211,7 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user_id: me._id,
         name: me.name,
         email: me.email,
-        avatar_url: me.avatar_url || null,
+        avatar_url: me.profile_img || null,
         created_at: me.createdAt,
         updated_at: me.updatedAt,
       };
@@ -232,17 +278,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
+    <AuthContext.Provider value={{
+      user,
       session: null,
-      profile, 
-      role, 
-      loading, 
-      signIn, 
-      signUp, 
-      signOut, 
+      profile,
+      role,
+      loading,
+      signIn,
+      signUp,
+      signOut,
       updateProfile,
-      refreshProfile 
+      refreshProfile
     }}>
       {children}
     </AuthContext.Provider>
