@@ -101,11 +101,11 @@ export function MagazineEditor({ magazine, onSubmit, onCancel, isSubmitting = fa
             </div>
           ) : (
             <div
-              className="flex aspect-video cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary/50 hover:bg-muted"
+              className="flex h-48 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/50 transition-colors hover:border-primary/50 hover:bg-muted"
               onClick={() => fileInputRef.current?.click()}
             >
               <ImageIcon className="mb-2 h-10 w-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Click to upload cover image for IITD Research Magazine</p>
+              <p className="text-sm text-muted-foreground">Click to upload cover image</p>
               <p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP (max 8MB)</p>
             </div>
           )}
