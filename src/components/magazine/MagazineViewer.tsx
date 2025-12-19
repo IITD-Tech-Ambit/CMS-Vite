@@ -1,5 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import rehypeSanitize from 'rehype-sanitize';
 import { Magazine } from '@/types/database';
 import { formatReadTime } from '@/lib/readTime';
 import { Button } from '@/components/ui/button';
@@ -76,7 +78,42 @@ export function MagazineViewer({ magazine, onBack }: MagazineViewerProps) {
 
       {/* Content */}
       <div className="prose prose-lg max-w-none prose-headings:font-display prose-headings:text-foreground prose-p:text-foreground/90 prose-a:text-primary prose-strong:text-foreground prose-blockquote:border-primary prose-blockquote:text-muted-foreground">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+        <ReactMarkdown 
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw, rehypeSanitize]}
+          components={{
+            // Responsive images
+            img: ({ node, ...props }) => (
+              <img
+                {...props}
+                className="max-w-full h-auto rounded-lg my-4"
+                loading="lazy"
+              />
+            ),
+            // Responsive tables
+            table: ({ node, ...props }) => (
+              <div className="overflow-x-auto my-6">
+                <table {...props} className="min-w-full divide-y divide-gray-300 dark:divide-gray-700" />
+              </div>
+            ),
+            // Custom code styling
+            code: ({ node, inline, className, children, ...props }: any) => (
+              inline ? (
+                <code {...props} className="bg-muted px-1.5 py-0.5 rounded text-sm">
+                  {children}
+                </code>
+              ) : (
+                <code {...props} className="block bg-muted p-4 rounded-lg overflow-x-auto">
+                  {children}
+                </code>
+              )
+            ),
+            // Custom blockquote styling
+            blockquote: ({ node, ...props }) => (
+              <blockquote {...props} className="border-l-4 border-primary pl-4 italic my-4" />
+            ),
+          }}
+        >
           {magazine.body_markdown}
         </ReactMarkdown>
       </div>
