@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { Header } from '@/components/layout/Header';
 import { BookOpen, PenTool, Shield, Clock, ArrowRight, Loader2 } from 'lucide-react';
 
 export default function Index() {
@@ -26,22 +27,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border/40 bg-background/95 backdrop-blur">
-        <div className="container flex h-16 items-center justify-between">
-            <Link to="/" className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-primary" />
-            <span className="font-display text-xl font-semibold">IITD Research Magazine</span>
-          </Link>
-          <nav className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link to="/auth">Sign In</Link>
-            </Button>
-            <Button asChild>
-              <Link to="/auth?mode=signup">Get Started</Link>
-            </Button>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-b from-background to-muted/30 py-24 md:py-32">
@@ -63,8 +49,8 @@ export default function Index() {
                 </Link>
               </Button>
               <Button size="xl" variant="outline" asChild>
-                  <Link to="/auth">Sign In</Link>
-                </Button>
+                <Link to="/auth">Sign In</Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -141,14 +127,14 @@ export default function Index() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/40 py-8">
-        <div className="container">
-          <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-              <BookOpen className="h-5 w-5 text-primary" />
-              <span className="font-display font-semibold">IITD Research Magazine</span>
+      <footer className="border-t border-border/40 py-6 sm:py-8">
+        <div className="container px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+              <span className="font-display text-sm sm:text-base font-semibold">IITD Research Magazine</span>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs sm:text-sm text-center text-muted-foreground">
               © {new Date().getFullYear()} Indian Institute of Technology Delhi. All rights reserved.
             </p>
           </div>

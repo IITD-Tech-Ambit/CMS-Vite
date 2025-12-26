@@ -20,45 +20,79 @@ const statusToFrontend = (status: string): MagazineStatus => {
   return status as MagazineStatus; // 'pending' stays the same
 };
 
+interface PaginationInfo {
+  currentPage: number;
+  totalPages: number;
+  totalCount: number;
+  limit: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+interface StatusCounts {
+  pending: number;
+  approved: number;
+  disapproved: number;
+  total: number;
+}
+
 interface UseMagazinesOptions {
   mine?: boolean;
   status?: MagazineStatus;
+  page?: number;
+  limit?: number;
 }
 
 export function useMagazines(options: UseMagazinesOptions = {}) {
   const [magazines, setMagazines] = useState<Magazine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    currentPage: options.page || 1,
+    totalPages: 1,
+    totalCount: 0,
+    limit: options.limit || 9,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
+  const [statusCounts, setStatusCounts] = useState<StatusCounts>({
+    pending: 0,
+    approved: 0,
+    disapproved: 0,
+    total: 0,
+  });
   const { user, profile, role } = useAuth();
   const { toast } = useToast();
 
-  const loadMagazines = useCallback(async () => {
+  const loadMagazines = useCallback(async (page: number = pagination.currentPage) => {
     setLoading(true);
     const api = import.meta.env.VITE_API_URL || 'https://iitd-dev.vercel.app';
     const token = localStorage.getItem('magazine_token');
 
-    // If token present, call backend API
+    // If token present, call backend API with pagination
     if (token && user) {
       try {
-        // Backend returns all content, we filter client-side if needed
-        const url = `${api}/api/content`;
+        // Build URL with pagination query params
+        const params = new URLSearchParams();
+        params.set('page', String(page));
+        params.set('limit', String(options.limit || 9));
+        if (options.status) {
+          params.set('status', statusToBackend(options.status));
+        }
+
+        const url = `${api}/api/content/paginated?${params.toString()}`;
         const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const json = await resp.json();
-        if (resp.ok && json.success) {
-          let items = json.data || [];
 
-          // Filter by user's content if mine option is true
+        if (resp.ok && json.success) {
+          let items = json.data?.magazines || [];
+          const paginationData = json.data?.pagination || {};
+
+          // Filter by user's content if mine option is true (client-side filter for user's own content)
           if (options.mine && role !== 'admin') {
             items = items.filter((m: any) => m.created_by === user.id || (m.created_by?._id === user.id));
           }
 
-          // Filter by status if specified
-          if (options.status) {
-            const backendStatus = statusToBackend(options.status);
-            items = items.filter((m: any) => m.status === backendStatus);
-          }
-
           // normalize backend content shape to frontend expected shape
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mapped = items.map((m: any) => {
             const makeAbsolute = (p: string | null) => {
               if (!p) return null;
@@ -85,12 +119,26 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
             } as Magazine);
           });
 
-          // Sort by created_at descending
-          mapped.sort((a: Magazine, b: Magazine) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
           setMagazines(mapped);
+          setPagination({
+            currentPage: paginationData.currentPage || page,
+            totalPages: paginationData.totalPages || 1,
+            totalCount: paginationData.totalCount || mapped.length,
+            limit: paginationData.limit || options.limit || 9,
+            hasNextPage: paginationData.hasNextPage || false,
+            hasPrevPage: paginationData.hasPrevPage || false,
+          });
+          // Update status counts from API response
+          const statusCountsData = json.data?.statusCounts || {};
+          setStatusCounts({
+            pending: statusCountsData.pending || 0,
+            approved: statusCountsData.approved || 0,
+            disapproved: statusCountsData.disapproved || 0,
+            total: statusCountsData.total || 0,
+          });
         } else {
           setMagazines([]);
+          setPagination(prev => ({ ...prev, currentPage: 1, totalPages: 1, totalCount: 0 }));
         }
       } catch (e) {
         console.warn('Failed to fetch content from API', e);
@@ -118,9 +166,43 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
     // Sort by created_at descending
     allMagazines.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    setMagazines(allMagazines);
+    // Client-side pagination for localStorage fallback
+    const limit = options.limit || 9;
+    const totalCount = allMagazines.length;
+    const totalPages = Math.ceil(totalCount / limit);
+    const startIndex = (page - 1) * limit;
+    const paginatedItems = allMagazines.slice(startIndex, startIndex + limit);
+
+    setMagazines(paginatedItems);
+    setPagination({
+      currentPage: page,
+      totalPages,
+      totalCount,
+      limit,
+      hasNextPage: page < totalPages,
+      hasPrevPage: page > 1,
+    });
     setLoading(false);
-  }, [options.mine, options.status, user, role]);
+  }, [options.mine, options.status, options.limit, user, role, pagination.currentPage]);
+
+  // Page navigation functions
+  const setPage = useCallback((page: number) => {
+    if (page >= 1 && page <= pagination.totalPages) {
+      loadMagazines(page);
+    }
+  }, [loadMagazines, pagination.totalPages]);
+
+  const nextPage = useCallback(() => {
+    if (pagination.hasNextPage) {
+      loadMagazines(pagination.currentPage + 1);
+    }
+  }, [loadMagazines, pagination.currentPage, pagination.hasNextPage]);
+
+  const prevPage = useCallback(() => {
+    if (pagination.hasPrevPage) {
+      loadMagazines(pagination.currentPage - 1);
+    }
+  }, [loadMagazines, pagination.currentPage, pagination.hasPrevPage]);
 
   useEffect(() => {
     loadMagazines();
@@ -387,6 +469,11 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
   return {
     magazines,
     loading,
+    pagination,
+    statusCounts,
+    setPage,
+    nextPage,
+    prevPage,
     createMagazine,
     updateMagazine,
     deleteMagazine,

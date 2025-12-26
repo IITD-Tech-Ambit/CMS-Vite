@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -9,15 +10,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, LogOut, BookOpen } from 'lucide-react';
+import { User, LogOut, BookOpen, Menu, X } from 'lucide-react';
 
 export function Header() {
   const { user, profile, role, signOut } = useAuth();
   const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+    setIsMobileMenuOpen(false);
   };
 
   const getInitials = (name: string) => {
@@ -31,23 +34,27 @@ export function Header() {
 
   const dashboardPath = role === 'admin' ? '/dashboard/admin' : '/dashboard/user';
 
+  const closeMobileMenu = () => setIsMobileMenuOpen(false);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <BookOpen className="h-6 w-6 text-primary" />
-          <span className="font-display text-xl font-semibold text-foreground">
-            MagPress
+      <div className="container flex h-14 sm:h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2" onClick={closeMobileMenu}>
+          <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+          <span className="font-display text-lg sm:text-xl font-semibold text-foreground">
+            IITD Research Magazine
           </span>
         </Link>
 
-        <nav className="flex items-center gap-4">
+        {/* Desktop Navigation */}
+        <nav className="hidden md:flex items-center gap-4">
           {user && profile ? (
             <>
               <Button variant="ghost" asChild>
                 <Link to={dashboardPath}>Dashboard</Link>
               </Button>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-9 w-9 rounded-full">
@@ -92,7 +99,81 @@ export function Header() {
             </>
           )}
         </nav>
+
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden h-9 w-9"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
+        >
+          {isMobileMenuOpen ? (
+            <X className="h-5 w-5" />
+          ) : (
+            <Menu className="h-5 w-5" />
+          )}
+        </Button>
       </div>
+
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-border/40 bg-background/95 backdrop-blur">
+          <nav className="container px-4 py-4 space-y-3">
+            {user && profile ? (
+              <>
+                {/* User Info Card */}
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={profile.avatar_url || undefined} alt={profile.name} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                      {getInitials(profile.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <p className="font-medium text-sm">{profile.name}</p>
+                    <p className="text-xs text-muted-foreground">{profile.email}</p>
+                    <p className="text-xs text-primary capitalize">{role}</p>
+                  </div>
+                </div>
+
+                {/* Mobile Nav Links */}
+                <div className="space-y-1">
+                  <Button variant="ghost" className="w-full justify-start" asChild onClick={closeMobileMenu}>
+                    <Link to={dashboardPath}>
+                      <BookOpen className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Link>
+                  </Button>
+                  <Button variant="ghost" className="w-full justify-start" asChild onClick={closeMobileMenu}>
+                    <Link to="/profile">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Button variant="ghost" className="w-full justify-center" asChild onClick={closeMobileMenu}>
+                  <Link to="/auth">Sign In</Link>
+                </Button>
+                <Button className="w-full justify-center" asChild onClick={closeMobileMenu}>
+                  <Link to="/auth?mode=signup">Get Started</Link>
+                </Button>
+              </div>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

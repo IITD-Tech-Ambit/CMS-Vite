@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -6,7 +7,7 @@ import { Magazine } from '@/types/database';
 import { formatReadTime } from '@/lib/readTime';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Clock, User, Calendar } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Clock, User, Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface MagazineViewerProps {
@@ -15,10 +16,30 @@ interface MagazineViewerProps {
 }
 
 export function MagazineViewer({ magazine, onBack }: MagazineViewerProps) {
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
   const statusColors = {
     pending: 'bg-warning/10 text-warning border-warning/20',
     approved: 'bg-success/10 text-success border-success/20',
     disapproved: 'bg-destructive/10 text-destructive border-destructive/20',
+  };
+
+  // Handle scroll visibility
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Scroll to top function
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
   };
 
   return (
@@ -78,7 +99,7 @@ export function MagazineViewer({ magazine, onBack }: MagazineViewerProps) {
 
       {/* Content */}
       <div className="prose prose-lg max-w-none prose-headings:font-display prose-headings:text-foreground prose-p:text-foreground/90 prose-a:text-primary prose-strong:text-foreground prose-blockquote:border-primary prose-blockquote:text-muted-foreground">
-        <ReactMarkdown 
+        <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw, rehypeSanitize]}
           components={{
@@ -117,6 +138,18 @@ export function MagazineViewer({ magazine, onBack }: MagazineViewerProps) {
           {magazine.body_markdown}
         </ReactMarkdown>
       </div>
+
+      {/* Scroll to Top Button */}
+      {showScrollTop && (
+        <Button
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-50 h-12 w-12 rounded-full shadow-lg transition-all duration-300 hover:scale-110"
+          size="icon"
+          aria-label="Scroll to top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+      )}
     </article>
   );
 }

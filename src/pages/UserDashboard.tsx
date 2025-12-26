@@ -26,14 +26,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Loader2, BookOpen } from 'lucide-react';
+import { Plus, Loader2, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 
 type ViewMode = 'grid' | 'editor' | 'viewer';
 
 export default function UserDashboard() {
   const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { magazines, loading, createMagazine, updateMagazine, deleteMagazine } = useMagazines({ mine: true });
+  const { magazines, loading, pagination, setPage, nextPage, prevPage, createMagazine, updateMagazine, deleteMagazine } = useMagazines({ mine: true });
   const { toast } = useToast();
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -75,7 +75,7 @@ export default function UserDashboard() {
     if (!magazineToDelete) return;
 
     const { error } = await deleteMagazine(magazineToDelete.id);
-    
+
     if (error) {
       toast({
         title: 'Error',
@@ -101,7 +101,7 @@ export default function UserDashboard() {
 
     try {
       let result;
-      
+
       if (selectedMagazine) {
         result = await updateMagazine(selectedMagazine.id, data, heroImage);
       } else {
@@ -143,7 +143,7 @@ export default function UserDashboard() {
   if (viewMode === 'viewer' && selectedMagazine) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="container py-8">
+        <div className="container px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <MagazineViewer magazine={selectedMagazine} onBack={handleCancel} />
         </div>
       </div>
@@ -171,39 +171,88 @@ export default function UserDashboard() {
       title="My IITD Submissions"
       description="Manage your research submissions"
       action={
-        <Button onClick={handleCreateNew} size="lg">
-          <Plus className="mr-2 h-5 w-5" />
-          New Submission
+        <Button onClick={handleCreateNew} size="default" className="w-full sm:w-auto">
+          <Plus className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="sm:inline">New Submission</span>
         </Button>
       }
     >
       {magazines.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 py-20">
-          <BookOpen className="mb-4 h-16 w-16 text-muted-foreground/50" />
-          <h3 className="font-display text-xl font-semibold text-foreground">No submissions yet</h3>
-          <p className="mt-2 text-muted-foreground">Create your first submission to get started</p>
+        <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-muted/30 px-4 py-12 sm:py-20">
+          <BookOpen className="mb-4 h-12 w-12 sm:h-16 sm:w-16 text-muted-foreground/50" />
+          <h3 className="font-display text-lg sm:text-xl font-semibold text-foreground text-center">No submissions yet</h3>
+          <p className="mt-2 text-sm sm:text-base text-muted-foreground text-center">Create your first submission to get started</p>
           <Button onClick={handleCreateNew} className="mt-6">
             <Plus className="mr-2 h-4 w-4" />
             Create Submission
           </Button>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {magazines.map((magazine, index) => (
-            <div
-              key={magazine.id}
-              className="animate-slide-up"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <MagazineCard
-                magazine={magazine}
-                onEdit={() => handleEdit(magazine)}
-                onView={() => handleView(magazine)}
-                onDelete={() => handleDelete(magazine)}
-              />
+        <>
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {magazines.map((magazine, index) => (
+              <div
+                key={magazine.id}
+                className="animate-slide-up"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <MagazineCard
+                  magazine={magazine}
+                  onEdit={() => handleEdit(magazine)}
+                  onView={() => handleView(magazine)}
+                  onDelete={() => handleDelete(magazine)}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination Controls - Only show when 9+ magazines */}
+          {pagination.totalCount >= 9 && (
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevPage}
+                  disabled={!pagination.hasPrevPage}
+                  className="h-9 px-3"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => i + 1).map((pageNum) => (
+                    <Button
+                      key={pageNum}
+                      variant={pageNum === pagination.currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPage(pageNum)}
+                      className="h-9 w-9 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={nextPage}
+                  disabled={!pagination.hasNextPage}
+                  className="h-9 px-3"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Showing {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, magazines.length)} of {magazines.length} submissions
+              </p>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

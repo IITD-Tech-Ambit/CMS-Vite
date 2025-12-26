@@ -27,14 +27,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, FileText, Clock, CheckCircle, XCircle, Users } from 'lucide-react';
+import { Loader2, FileText, Clock, CheckCircle, XCircle, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 
 type ViewMode = 'grid' | 'viewer';
 
 export default function AdminDashboard() {
   const { user, role, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { magazines, loading, deleteMagazine, updateStatus } = useMagazines();
+  const { magazines, loading, pagination, setPage, nextPage, prevPage, deleteMagazine, updateStatus } = useMagazines();
   const { toast } = useToast();
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -57,8 +57,9 @@ export default function AdminDashboard() {
     ? magazines
     : magazines.filter((m) => m.status === statusFilter);
 
+  // Stats calculated from current page data (first page shows all counts accurately when limit covers all items)
   const stats = {
-    total: magazines.length,
+    total: pagination.totalCount,
     pending: magazines.filter((m) => m.status === 'pending').length,
     approved: magazines.filter((m) => m.status === 'approved').length,
     disapproved: magazines.filter((m) => m.status === 'disapproved').length,
@@ -81,7 +82,7 @@ export default function AdminDashboard() {
     setProcessingId(magazineToDelete.id);
     const { error } = await deleteMagazine(magazineToDelete.id);
     setProcessingId(null);
-    
+
     if (error) {
       toast({
         title: 'Error',
@@ -103,7 +104,7 @@ export default function AdminDashboard() {
     setProcessingId(magazine.id);
     const { error } = await updateStatus(magazine.id, 'approved');
     setProcessingId(null);
-    
+
     if (error) {
       toast({
         title: 'Error',
@@ -122,7 +123,7 @@ export default function AdminDashboard() {
     setProcessingId(magazine.id);
     const { error } = await updateStatus(magazine.id, 'disapproved');
     setProcessingId(null);
-    
+
     if (error) {
       toast({
         title: 'Error',
@@ -186,7 +187,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.pending}</p>
-              <p className="text-sm text-muted-foreground">Pending</p>
+              <p className="text-sm text-muted-foreground">Pending (in this page)</p>
             </div>
           </CardContent>
         </Card>
@@ -198,7 +199,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.approved}</p>
-              <p className="text-sm text-muted-foreground">Approved</p>
+              <p className="text-sm text-muted-foreground">Approved (in this page)</p>
             </div>
           </CardContent>
         </Card>
@@ -210,7 +211,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.disapproved}</p>
-              <p className="text-sm text-muted-foreground">Disapproved</p>
+              <p className="text-sm text-muted-foreground">Disapproved (in this page)</p>
             </div>
           </CardContent>
         </Card>
@@ -222,7 +223,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="text-2xl font-bold">{stats.authors}</p>
-              <p className="text-sm text-muted-foreground">Authors</p>
+              <p className="text-sm text-muted-foreground">Authors (in this page)</p>
             </div>
           </CardContent>
         </Card>
@@ -259,25 +260,74 @@ export default function AdminDashboard() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredMagazines.map((magazine, index) => (
-            <div
-              key={magazine.id}
-              className="animate-slide-up"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <MagazineCard
-                magazine={magazine}
-                isAdmin
-                isProcessing={processingId === magazine.id}
-                onView={() => handleView(magazine)}
-                onDelete={() => handleDelete(magazine)}
-                onApprove={() => handleApprove(magazine)}
-                onDisapprove={() => handleDisapprove(magazine)}
-              />
+        <>
+          <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredMagazines.map((magazine, index) => (
+              <div
+                key={magazine.id}
+                className="animate-slide-up"
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <MagazineCard
+                  magazine={magazine}
+                  isAdmin
+                  isProcessing={processingId === magazine.id}
+                  onView={() => handleView(magazine)}
+                  onDelete={() => handleDelete(magazine)}
+                  onApprove={() => handleApprove(magazine)}
+                  onDisapprove={() => handleDisapprove(magazine)}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Pagination Controls - Only show when 9+ magazines */}
+          {pagination.totalCount >= 9 && (
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={prevPage}
+                  disabled={!pagination.hasPrevPage}
+                  className="h-9 px-3"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => i + 1).map((pageNum) => (
+                    <Button
+                      key={pageNum}
+                      variant={pageNum === pagination.currentPage ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPage(pageNum)}
+                      className="h-9 w-9 p-0"
+                    >
+                      {pageNum}
+                    </Button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={nextPage}
+                  disabled={!pagination.hasNextPage}
+                  className="h-9 px-3"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+
+              <p className="text-sm text-muted-foreground">
+                Showing {((pagination.currentPage - 1) * pagination.limit) + 1} - {Math.min(pagination.currentPage * pagination.limit, pagination.totalCount)} of {pagination.totalCount} submissions
+              </p>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
