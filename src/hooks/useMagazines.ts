@@ -78,19 +78,18 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
         if (options.status) {
           params.set('status', statusToBackend(options.status));
         }
+        // Add 'mine' parameter for server-side user filtering
+        if (options.mine && role !== 'admin') {
+          params.set('mine', 'true');
+        }
 
         const url = `${api}/api/content/paginated?${params.toString()}`;
         const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
         const json = await resp.json();
 
         if (resp.ok && json.success) {
-          let items = json.data?.magazines || [];
+          const items = json.data?.magazines || [];
           const paginationData = json.data?.pagination || {};
-
-          // Filter by user's content if mine option is true (client-side filter for user's own content)
-          if (options.mine && role !== 'admin') {
-            items = items.filter((m: any) => m.created_by === user.id || (m.created_by?._id === user.id));
-          }
 
           // normalize backend content shape to frontend expected shape
           const mapped = items.map((m: any) => {
@@ -120,6 +119,8 @@ export function useMagazines(options: UseMagazinesOptions = {}) {
           });
 
           setMagazines(mapped);
+
+          // Use server pagination directly - backend now handles user filtering
           setPagination({
             currentPage: paginationData.currentPage || page,
             totalPages: paginationData.totalPages || 1,
